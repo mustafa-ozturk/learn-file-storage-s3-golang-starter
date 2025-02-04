@@ -73,6 +73,20 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 
 	io.Copy(tmpVideoFile, file)
 
+	aspectRatio, err := getVideoAspectRatio(tmpVideoFile.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not get aspect ratio", err)
+		return
+	}
+
+	aspectRatioMap := map[string]string{
+		"16:9":  "landscape",
+		"9:16":  "portrait",
+		"other": "other",
+	}
+
+	prefix := aspectRatioMap[aspectRatio] + "/"
+
 	// reset tempVideoFile's file pointer to the beginning so that we can read it again
 	tmpVideoFile.Seek(0, io.SeekStart)
 
@@ -84,7 +98,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	}
 	randomBase64Str := base64.RawURLEncoding.EncodeToString(randomBytes)
 	fileExtension := strings.Split(mediaType, "/")[1]
-	fileName := randomBase64Str + "." + fileExtension
+	fileName := prefix + randomBase64Str + "." + fileExtension
 
 	params := s3.PutObjectInput{
 		Bucket:      &cfg.s3Bucket,
